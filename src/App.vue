@@ -45,6 +45,10 @@
               </div>
               <div class="slot__role">{{ roleLabel(slot.role) }}</div>
             </div>
+            <div class="slot__bid">
+              <div class="slot__bid-label">Current Bid</div>
+              <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
+            </div>
           </li>
         </ul>
       </div>
@@ -65,6 +69,10 @@
                 {{ slot.displayName || 'Waiting for player…' }}
               </div>
               <div class="slot__role">{{ roleLabel(slot.role) }}</div>
+            </div>
+            <div class="slot__bid">
+              <div class="slot__bid-label">Current Bid</div>
+              <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
             </div>
           </li>
         </ul>
@@ -154,6 +162,14 @@ const roles: { key: RoleKey; label: string }[] = [
   { key: 'ADC',     label: 'ADC' },
   { key: 'SUPPORT', label: 'Support' }
 ];
+
+const roleTopBids = reactive<Record<RoleKey, number>>({
+  TOP: 10,
+  JUNGLE: 0,
+  MID: 0,
+  ADC: 0,
+  SUPPORT: 0
+});
 
 const createEmptyTeam = (name: string): Team => ({
   name,
@@ -263,14 +279,19 @@ const bidPopupTopBid = ref<number | null>(5);
 const onClickQueueForRole = (role: RoleKey) => {
   // eventually this data will come from API
   bidPopupRoleName.value = roleLabel(role);
-  bidPopupQueuePosition.value = 3;   // example from API
-  bidPopupTopBid.value = 5;          // example from API
+  bidPopupQueuePosition.value = 3;
+  bidPopupTopBid.value = roleTopBids[role];
   bidPopupOpen.value = true;
 };
 
+// replace with API call 
 const handleBidSubmit = (amount: number) => {
   bidPopupOpen.value = false;
-  // later: call secure bidding API with role + amount
+  
+  const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
+  if (roleKey) {
+    roleTopBids[roleKey] = Math.max(roleTopBids[roleKey], amount);
+  }
 };
 
 const handleBidCancel = () => {
@@ -461,6 +482,30 @@ const handleBidCancel = () => {
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: #9fb4d8;
+}
+
+.slot__left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.slot__bid {
+  margin-left: auto;
+  text-align: right;
+  font-size: 0.78rem;
+}
+
+.slot__bid-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #9fb4d8;
+}
+
+.slot__bid-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #22c55e;
 }
 
 /* Footer bar */
