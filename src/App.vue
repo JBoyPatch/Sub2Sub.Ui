@@ -119,6 +119,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import BidPopup from './BidPopup.vue';
 import MatchResultPopup from './MatchResultPopup.vue';
+import { useUserStore } from './stores/userStore';
+
+const userStore = useUserStore();
+userStore.hydrateFromStorage();
 
 type RoleKey = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT';
 
@@ -138,12 +142,10 @@ const props = withDefaults(
     /** ISO string or anything new Date() accepts */
     startsAt?: string;
     /** The name of the currently logged-in user (to be queued into slots). */
-    currentUserName?: string;
   }>(),
   {
     tournamentName: 'Bronze War',
-    startsAt: new Date(Date.now() + .10 * 60 * 1000).toISOString(), // countdown
-    currentUserName: 'OptimalLulz',
+    startsAt: new Date(Date.now() + .5 * 60 * 1000).toISOString(), // countdown
   }
 );
 
@@ -236,7 +238,7 @@ const queueForRole = (role: RoleKey) => {
     );
 
     if (slotIndex !== -1) {
-      team.slots[slotIndex].displayName = props.currentUserName;
+      team.slots[slotIndex].displayName = userStore.displayName;
       userAssignment.value = { teamIndex, slotIndex };
       statusMessage.value = `Queued as ${roleLabel(role)} on ${team.name}.`;
       return;
@@ -265,10 +267,13 @@ const onClickQueueForRole = (role: RoleKey) => {
 // replace with API call 
 const handleBidSubmit = (amount: number) => {
   bidPopupOpen.value = false;
-  
+
   const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
   if (roleKey) {
+    // update local top bid (test only)
     roleTopBids[roleKey] = Math.max(roleTopBids[roleKey], amount);
+    // 🔧 TEST ONLY: pretend backend accepted the bid and you won
+    queueForRole(roleKey);
   }
 };
 
