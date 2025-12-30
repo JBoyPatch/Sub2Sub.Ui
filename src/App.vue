@@ -106,11 +106,19 @@
     @submit="handleBidSubmit"
     @cancel="handleBidCancel"
   />
+  <MatchResultPopup
+    :open="resultPopupOpen"
+    :did-win="resultDidWin"
+    :won-role-name="resultWonRoleName || ''"
+    :match-code="resultMatchCode || ''"
+    @close="handleResultClose"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import BidPopup from './BidPopup.vue';
+import MatchResultPopup from './MatchResultPopup.vue';
 
 type RoleKey = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT';
 
@@ -134,7 +142,7 @@ const props = withDefaults(
   }>(),
   {
     tournamentName: 'Bronze War',
-    startsAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5-min countdown
+    startsAt: new Date(Date.now() + .10 * 60 * 1000).toISOString(), // countdown
     currentUserName: 'OptimalLulz',
   }
 );
@@ -193,36 +201,6 @@ const userAssignment = ref<{ teamIndex: number; slotIndex: number } | null>(
 );
 
 const statusMessage = ref<string | null>(null);
-
-/* --- Countdown timer --- */
-
-const remainingSeconds = ref(0);
-let timerId: number | null = null;
-
-const updateRemaining = () => {
-  const now = Date.now();
-  const start = new Date(props.startsAt).getTime();
-  const diffMs = Math.max(0, Math.floor((start - now) / 1000));
-  remainingSeconds.value = diffMs;
-};
-
-const formattedRemaining = computed(() => {
-  const s = remainingSeconds.value;
-  const minutes = Math.floor(s / 60);
-  const seconds = s % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-});
-
-onMounted(() => {
-  updateRemaining();
-  timerId = window.setInterval(updateRemaining, 1000);
-});
-
-onBeforeUnmount(() => {
-  if (timerId !== null) {
-    clearInterval(timerId);
-  }
-});
 
 /* --- Queue logic --- */
 
@@ -297,6 +275,78 @@ const handleBidSubmit = (amount: number) => {
 const handleBidCancel = () => {
   bidPopupOpen.value = false;
 };
+
+/** --- Result Popup Logic --- */
+
+const resultPopupOpen = ref(false);
+const resultDidWin = ref(false);
+const resultWonRoleName = ref<string | null>(null);
+const resultMatchCode = ref<string | null>(null);
+const hasShownResultPopup = ref(false);
+
+const showResultPopupForCurrentUser = () => {
+  hasShownResultPopup.value = true;
+
+  if (userAssignment.value) {
+    // Demo logic: if you were assigned a slot, you "won"
+    const { teamIndex, slotIndex } = userAssignment.value;
+    const role = teams[teamIndex].slots[slotIndex].role;
+
+    resultDidWin.value = true;
+    resultWonRoleName.value = roleLabel(role);
+
+    // Demo match code – later replace with API response
+    resultMatchCode.value = 'DEMO-ABCD-1234';
+  } else {
+    // You didn't win any role
+    resultDidWin.value = false;
+    resultWonRoleName.value = null;
+    resultMatchCode.value = null;
+  }
+
+  resultPopupOpen.value = true;
+};
+
+const handleResultClose = () => {
+  resultPopupOpen.value = false;
+};
+
+/* --- Countdown timer --- */
+
+const remainingSeconds = ref(0);
+let timerId: number | null = null;
+
+const updateRemaining = () => {
+  const now = Date.now();
+  const start = new Date(props.startsAt).getTime();
+  const diffMs = Math.max(0, Math.floor((start - now) / 1000));
+
+  const previous = remainingSeconds.value;
+  remainingSeconds.value = diffMs;
+
+  if (diffMs === 0 && previous > 0 && !hasShownResultPopup.value) {
+    // Timer just finished – call API later, for now show popup
+    showResultPopupForCurrentUser();
+  }
+};
+
+const formattedRemaining = computed(() => {
+  const s = remainingSeconds.value;
+  const minutes = Math.floor(s / 60);
+  const seconds = s % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+});
+
+onMounted(() => {
+  updateRemaining();
+  timerId = window.setInterval(updateRemaining, 1000);
+});
+
+onBeforeUnmount(() => {
+  if (timerId !== null) {
+    clearInterval(timerId);
+  }
+});
 
 </script>
 
