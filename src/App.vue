@@ -55,6 +55,14 @@
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
               <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
+
+              <!-- Winner float animation -->
+              <div
+                v-if="winnerRole === slot.role"
+                class="slot__winner-float"
+              >
+                Winner!!!
+              </div>
             </div>
           </li>
         </ul>
@@ -87,6 +95,14 @@
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
               <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
+
+              <!-- Winner float animation -->
+              <div
+                v-if="winnerRole === slot.role"
+                class="slot__winner-float"
+              >
+                Winner!!!
+              </div>
             </div>
           </li>
         </ul>
@@ -150,6 +166,8 @@ interface Team {
   name: string;
   slots: Slot[];
 }
+
+const winnerRole = ref<RoleKey | null>(null);
 
 const props = withDefaults(
   defineProps<{
@@ -286,11 +304,24 @@ const handleBidSubmit = (amount: number) => {
   bidPopupOpen.value = false;
 
   const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
-  if (roleKey) {
+  if (!roleKey) return;
+
+  const previousTop = roleTopBids[roleKey];
+
+  if (amount > previousTop) {
     // update local top bid (test only)
-    roleTopBids[roleKey] = Math.max(roleTopBids[roleKey], amount);
-    // 🔧 TEST ONLY: pretend backend accepted the bid and you won
+    roleTopBids[roleKey] = amount;
+
+    // pretend backend accepted the bid and you won the slot
     queueForRole(roleKey);
+
+    // show "Winner!!!" over that role's bid
+    winnerRole.value = roleKey;
+    window.setTimeout(() => {
+      if (winnerRole.value === roleKey) {
+        winnerRole.value = null;
+      }
+    }, 1200); // matches CSS animation duration
   }
 };
 
@@ -573,6 +604,30 @@ onBeforeUnmount(() => {
   margin-left: auto;
   text-align: right;
   font-size: 0.78rem;
+  position: relative;
+}
+
+@keyframes winnerFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+}
+
+.slot__winner-float {
+  position: absolute;
+  right: 0.4rem;
+  top: -0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #22c55e;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: winnerFloat 1.2s ease-out forwards;
 }
 
 .slot__bid-label {
