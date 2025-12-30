@@ -38,7 +38,14 @@
             class="slot"
             :class="{ 'slot--filled': !!slot.displayName }"
           >
-            <div class="slot__avatar"></div>
+            <div class="slot__avatar">
+              <img
+                v-if="slot.avatarUrl"
+                :src="slot.avatarUrl"
+                alt="avatar"
+                class="slot__avatar-img"
+              />
+            </div>
             <div class="slot__info">
               <div class="slot__name">
                 {{ slot.displayName || 'Waiting for player…' }}
@@ -63,7 +70,14 @@
             class="slot"
             :class="{ 'slot--filled': !!slot.displayName }"
           >
-            <div class="slot__avatar"></div>
+             <div class="slot__avatar">
+              <img
+                v-if="slot.avatarUrl"
+                :src="slot.avatarUrl"
+                alt="avatar"
+                class="slot__avatar-img"
+              />
+            </div>
             <div class="slot__info">
               <div class="slot__name">
                 {{ slot.displayName || 'Waiting for player…' }}
@@ -129,6 +143,7 @@ type RoleKey = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT';
 interface Slot {
   role: RoleKey;
   displayName: string | null;
+  avatarUrl?: string | null;
 }
 
 interface Team {
@@ -185,7 +200,8 @@ const createEmptyTeam = (name: string): Team => ({
   name,
   slots: roles.map((r) => ({
     role: r.key,
-    displayName: null
+    displayName: null,
+    avatarUrl: null
   }))
 });
 
@@ -239,6 +255,7 @@ const queueForRole = (role: RoleKey) => {
 
     if (slotIndex !== -1) {
       team.slots[slotIndex].displayName = userStore.displayName;
+      team.slots[slotIndex].avatarUrl = userStore.avatarUrl;
       userAssignment.value = { teamIndex, slotIndex };
       statusMessage.value = `Queued as ${roleLabel(role)} on ${team.name}.`;
       return;
@@ -511,6 +528,13 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   border: 1px solid #50678b;
   background: radial-gradient(circle at 30% 25%, #202e47, #05070c);
+}
+
+.slot__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
 }
 
 .slot--filled .slot__avatar {
