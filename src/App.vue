@@ -54,11 +54,11 @@
             </div>
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
-              <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
+              <div class="slot__bid-value">{{ teamTopBids[0][slot.role] }} Credits</div>
 
               <!-- Winner float animation -->
               <div
-                v-if="winnerRole === slot.role"
+                v-if="winnerRoleByTeam[0] === slot.role"
                 class="slot__winner-float"
               >
                 Winner!!!
@@ -94,11 +94,11 @@
             </div>
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
-              <div class="slot__bid-value">{{ roleTopBids[slot.role] }} Credits</div>
+              <div class="slot__bid-value">{{ teamTopBids[1][slot.role] }} Credits</div>
 
               <!-- Winner float animation -->
               <div
-                v-if="winnerRole === slot.role"
+                v-if="winnerRoleByTeam[1] === slot.role"
                 class="slot__winner-float"
               >
                 Winner!!!
@@ -111,12 +111,28 @@
 
     <!-- Queue buttons -->
     <footer class="lobby__footer">
+      <div class="team-selector">
+       <button
+         class="team-selector__btn"
+         :class="{ 'team-selector__btn--active': selectedTeamIndex === 0 }"
+         @click="selectedTeamIndex = 0"
+       >
+         Team A
+       </button>
+       <button
+         class="team-selector__btn"
+         :class="{ 'team-selector__btn--active': selectedTeamIndex === 1 }"
+         @click="selectedTeamIndex = 1"
+       >
+         Team B
+       </button>
+      </div>
       <div class="queue-buttons">
         <button
           v-for="role in roles"
           :key="role.key"
           class="queue-buttons__btn"
-          :disabled="!canQueueFor(role.key)"
+          :disabled="!canQueueFor(role.key, selectedTeamIndex)"
           @click="onClickQueueForRole(role.key)"
         >
           Queue for {{ role.label }}
@@ -167,7 +183,10 @@ interface Team {
   slots: Slot[];
 }
 
-const winnerRole = ref<RoleKey | null>(null);
+const winnerRoleByTeam = reactive<(RoleKey | null)[]>([null, null]);
+const selectedTeamIndex = ref<0 | 1>(0);   // which team user is bidding on
+const bidPopupTeamIndex = ref<0 | 1>(0);   // which team the current popup is for
+
 
 const props = withDefaults(
   defineProps<{
@@ -206,13 +225,10 @@ const roles: { key: RoleKey; label: string }[] = [
   { key: 'SUPPORT', label: 'Support' }
 ];
 
-const roleTopBids = reactive<Record<RoleKey, number>>({
-  TOP: 10,
-  JUNGLE: 0,
-  MID: 0,
-  ADC: 0,
-  SUPPORT: 0
-});
+const teamTopBids = reactive<Record<RoleKey, number>[]>([
+  { TOP: 10, JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 }, 
+  { TOP: 0,  JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 },
+]);
 
 const createEmptyTeam = (name: string): Team => ({
   name,
@@ -243,20 +259,19 @@ const statusMessage = ref<string | null>(null);
 const roleLabel = (role: RoleKey) =>
   roles.find((r) => r.key === role)?.label ?? role;
 
-const canQueueFor = (role: RoleKey): boolean => {
+const canQueueFor = (role: RoleKey, teamIndex: number): boolean => {
   if (userAssignment.value) {
     // Already queued somewhere, keep it simple for now.
     return false;
   }
 
-  // Is there at least one free slot with this role?
-  return teams.some((team) =>
-    team.slots.some((slot) => slot.role === role && !slot.displayName)
-  );
+  // Is there at least one free slot with this role + team?
+  const team = teams[teamIndex];
+  return team.slots.some((slot) => slot.role === role && !slot.displayName);
 };
 
 // test method for getting a role without bidding popup
-const queueForRole = (role: RoleKey) => {
+const queueForRole = (teamIndex: number, role: RoleKey) => {
   statusMessage.value = null;
 
   if (userAssignment.value) {
@@ -264,23 +279,21 @@ const queueForRole = (role: RoleKey) => {
     return;
   }
 
-  // Fill first available slot on Team A, then Team B.
-  for (let teamIndex = 0; teamIndex < teams.length; teamIndex++) {
-    const team = teams[teamIndex];
-    const slotIndex = team.slots.findIndex(
-      (slot) => slot.role === role && !slot.displayName
-    );
+  const team = teams[teamIndex];
+  const slotIndex = team.slots.findIndex(
+    (slot) => slot.role === role && !slot.displayName
+  );
 
-    if (slotIndex !== -1) {
-      team.slots[slotIndex].displayName = userStore.displayName;
-      team.slots[slotIndex].avatarUrl = userStore.avatarUrl;
-      userAssignment.value = { teamIndex, slotIndex };
-      statusMessage.value = `Queued as ${roleLabel(role)} on ${team.name}.`;
-      return;
-    }
+  if (slotIndex !== -1) {
+    team.slots[slotIndex].displayName = userStore.displayName;
+    team.slots[slotIndex].avatarUrl = userStore.avatarUrl;
+    userAssignment.value = { teamIndex, slotIndex };
+    statusMessage.value = `Queued as ${roleLabel(role)} on ${team.name}.`;
+  } 
+  else 
+  {
+    statusMessage.value = `${team.name} ${roleLabel(role)} is full.`;
   }
-
-  statusMessage.value = `${roleLabel(role)} is full.`;
 };
 
 
@@ -293,9 +306,10 @@ const bidPopupTopBid = ref<number | null>(5);
 
 const onClickQueueForRole = (role: RoleKey) => {
   // eventually this data will come from API
+  bidPopupTeamIndex.value = selectedTeamIndex.value;
   bidPopupRoleName.value = roleLabel(role);
   bidPopupQueuePosition.value = 3;
-  bidPopupTopBid.value = roleTopBids[role];
+  bidPopupTopBid.value = teamTopBids[bidPopupTeamIndex.value][role];
   bidPopupOpen.value = true;
 };
 
@@ -306,22 +320,20 @@ const handleBidSubmit = (amount: number) => {
   const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
   if (!roleKey) return;
 
-  const previousTop = roleTopBids[roleKey];
+  const teamIndex = bidPopupTeamIndex.value;
+  const previousTop = teamTopBids[teamIndex][roleKey];
 
   if (amount > previousTop) {
-    // update local top bid (test only)
-    roleTopBids[roleKey] = amount;
+    teamTopBids[teamIndex][roleKey] = amount;
+    queueForRole(teamIndex, roleKey);
 
-    // pretend backend accepted the bid and you won the slot
-    queueForRole(roleKey);
-
-    // show "Winner!!!" over that role's bid
-    winnerRole.value = roleKey;
+    // show "Winner!!!" only on that team’s column
+    winnerRoleByTeam[teamIndex] = roleKey;
     window.setTimeout(() => {
-      if (winnerRole.value === roleKey) {
-        winnerRole.value = null;
-      }
-    }, 1200); // matches CSS animation duration
+    if (winnerRoleByTeam[teamIndex] === roleKey) {
+      winnerRoleByTeam[teamIndex] = null;
+    }
+   }, 1200);
   }
 };
 
@@ -707,6 +719,32 @@ onBeforeUnmount(() => {
   color: #d6e2ff;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
 }
+
+.team-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.team-selector__btn {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #1b3b64;
+  background: linear-gradient(to bottom, #243b63, #151f35);
+  color: #dbeafe;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.team-selector__btn--active {
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.8);
+  border-color: #3b82f6;
+}
+
 
 /* Simple responsiveness */
 @media (max-width: 900px) {
