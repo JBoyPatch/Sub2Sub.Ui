@@ -23,7 +23,7 @@ export const useUserStore = defineStore('user', {
     displayName: (state) => state.user?.username ?? 'OptimalLulz',
     avatarUrl: (state) =>
       state.user?.avatarUrl ??
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNnrlK75zGyzudA9TsQPHt5Tuz07UP9gbhYg&s', // temp fallback
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNnrlK75zGyzudA9TsQPHt5Tuz07UP9gbhYg&s', // @todo temp fallback add missing icon locally
     credits: (state) => state.user?.credits ?? 0,
   },
 
@@ -32,33 +32,22 @@ export const useUserStore = defineStore('user', {
     setUser(payload: { user: UserProfile; accessToken: string }) {
       this.user = payload.user;
       this.accessToken = payload.accessToken;
-
-      // Optional: persist in localStorage for dev
-      localStorage.setItem('userStore', JSON.stringify(this.$state));
     },
 
     updateCredits(newAmount: number) {
       if (!this.user) return;
       this.user.credits = newAmount;
-      localStorage.setItem('userStore', JSON.stringify(this.$state));
     },
 
     logout() {
       this.user = null;
       this.accessToken = null;
-      localStorage.removeItem('userStore');
     },
 
     // Restore from localStorage on app start (dev convenience)
     hydrateFromStorage() {
-      const raw = localStorage.getItem('userStore');
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as UserState;
-        this.$patch(parsed);
-      } catch {
-        // ignore bad data
-      }
+      // No-op placeholder — persistence removed. Implement session restore via API when ready.
+      return;
     },
   },
 });
