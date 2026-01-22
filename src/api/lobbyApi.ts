@@ -31,6 +31,18 @@ export async function getLobby(lobbyId: string, user: UserQuery) {
   }
 }
 
+export async function getLobbies() {
+  try {
+    const url = `${baseUrl}/lobbies`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`GET lobbies failed: ${res.status}`);
+    return res.json();
+  } catch (e) {
+    console.error('Error fetching lobbies:', e);
+    return [];
+  }
+}
+
 export async function placeBid(lobbyId: string, bid: BidRequest, user: UserQuery) {
   const url = withUserQuery(`${baseUrl}/lobbies/${encodeURIComponent(lobbyId)}/bids`, user);
   const res = await fetch(url, {

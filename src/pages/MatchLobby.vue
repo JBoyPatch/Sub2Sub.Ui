@@ -131,7 +131,7 @@
           v-for="role in roles"
           :key="role.key"
           class="queue-buttons__btn"
-          :disabled="!canQueueFor(role.key)"
+          :disabled="!canQueueFor(role.key) || remainingSeconds <= 0"
           @click="onClickQueueForRole(role.key)"
         >
           Queue for {{ role.label }}
@@ -161,7 +161,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import BidPopup from '../BidPopup.vue';
 import MatchResultPopup from '../MatchResultPopup.vue';
 import { useUserStore } from '../stores/userStore';
@@ -188,8 +189,9 @@ const selectedTeamIndex = ref<0 | 1>(0);   // which team user is bidding on
 const bidPopupTeamIndex = ref<0 | 1>(0);   // which team the current popup is for
 const canQueueFor = (_role: RoleKey): boolean => !userAssignment.value;
 
-// Lobby header 
-const lobbyId = import.meta.env.VITE_LOBBY_ID as string; // @TODO temp until lobbies are started by admin
+// Lobby header
+const route = useRoute();
+const lobbyId = ref<string>((route.query.lobbyId as string) || (import.meta.env.VITE_LOBBY_ID as string) || 'lobby123');
 const lobbyTournamentName = ref<string>('Bronze War');
 const lobbyStartsAtIso = ref<string>(new Date(Date.now() + 3 * 60 * 1000).toISOString());
 const tournamentName = computed(() => lobbyTournamentName.value);
@@ -292,6 +294,12 @@ const applyLobbyDto = (dto: LobbyDto) => {
   } else {
     userAssignment.value = null;
   }
+  try {
+    const startMs = new Date(lobbyStartsAtIso.value).getTime();
+    if (Date.now() >= startMs && userAssignment.value && !hasShownResultPopup.value) {
+      pendingResultOnSync.value = true;
+    }
+  } catch {}
 };
 
 /* --- Refresh + Polling logic --- */
@@ -306,9 +314,14 @@ const getUserQuery = () => ({
 const refreshLobby = async () => {
   try {
     isSyncing.value = true;
-    const dto = await getLobby(lobbyId, getUserQuery());
+    const dto = await getLobby(lobbyId.value, getUserQuery());
     applyLobbyDto(dto);
     statusMessage.value = null;
+    if (pendingResultOnSync.value) {
+      pendingResultOnSync.value = false;
+      // show result popup if user won while away
+      showResultPopupForCurrentUser();
+    }
   } catch (e: any) {
     statusMessage.value = e?.message ?? 'Failed to sync lobby';
   } finally {
@@ -341,6 +354,18 @@ onMounted(async () => {
   });
 });
 
+// react to route query changes (e.g. /lobby?lobbyId=...)
+watch(
+  () => route.query.lobbyId,
+  async (val) => {
+    const id = (val as string) || (import.meta.env.VITE_LOBBY_ID as string) || 'lobby123';
+    if (id !== lobbyId.value) {
+      lobbyId.value = id;
+      await refreshLobby();
+    }
+  }
+);
+
 onBeforeUnmount(() => {
   stopLobbyPolling();
   if (timerId !== null) clearInterval(timerId);
@@ -364,13 +389,18 @@ const onClickQueueForRole = (role: RoleKey) => {
 };
 
 const handleBidSubmit = async (amount: number) => {
+  if (remainingSeconds.value <= 0) {
+    statusMessage.value = 'Match already started — bidding closed';
+    bidPopupOpen.value = false;
+    return;
+  }
   const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
   if (!roleKey) return;
 
   const teamIndex = bidPopupTeamIndex.value;
   try {
     const res = await placeBid(
-      lobbyId,
+      lobbyId.value,
       { teamIndex, role: roleKey, amount },
       getUserQuery()
     );
@@ -405,8 +435,9 @@ const resultDidWin = ref(false);
 const resultWonRoleName = ref<string | null>(null);
 const resultMatchCode = ref<string | null>(null);
 const hasShownResultPopup = ref(false);
+const pendingResultOnSync = ref(false);
 
-const showResultPopupForCurrentUser = () => {
+function showResultPopupForCurrentUser() {
   hasShownResultPopup.value = true;
 
   if (userAssignment.value) {
@@ -427,7 +458,7 @@ const showResultPopupForCurrentUser = () => {
   }
 
   resultPopupOpen.value = true;
-};
+}
 
 const handleResultClose = () => {
   resultPopupOpen.value = false;

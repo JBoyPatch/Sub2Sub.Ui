@@ -9,29 +9,36 @@
 
     <div class="tiles">
       <LobbyTile
-        title="Bronze War"
-        lobby-id="lobby123"
-        :api-url="lobbyUrl"
-        queue-tier="Bronze"
-        status="Live"
-        @open="openLobby"
+        v-for="lobby in lobbies"
+        :key="lobby.lobbyId"
+        :title="lobby.tournamentName"
+        :lobby-id="lobby.lobbyId"
+        :api-url="`https://uuzjaspetg.execute-api.us-east-1.amazonaws.com/$default/lobbies/${lobby.lobbyId}`"
+        :queue-tier="lobby.tournamentName.split(' ')[0]"
+        :status="'Live'"
+        @open="() => openLobby(lobby.lobbyId)"
       />
-      <!-- later: v-for="lobby in lobbies" :key="lobby.id" ... -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { ref, onMounted } from 'vue';
 import LobbyTile from '../components/LobbyTile.vue';
+import { getLobbies } from '../api/lobbyApi';
 
 const router = useRouter();
-const lobbyUrl =
-  'https://uuzjaspetg.execute-api.us-east-1.amazonaws.com/$default/lobbies/lobby123';
+const lobbies = ref<any[]>([]);
 
-const openLobby = () => {
-  router.push('/lobby');
+const openLobby = (id?: string) => {
+  if (id) router.push({ path: '/lobby', query: { lobbyId: id } });
+  else router.push('/lobby');
 };
+
+onMounted(async () => {
+  lobbies.value = await getLobbies();
+});
 </script>
 
 <style scoped>
