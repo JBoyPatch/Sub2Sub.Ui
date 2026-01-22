@@ -132,7 +132,7 @@
           v-for="role in roles"
           :key="role.key"
           class="queue-buttons__btn"
-          :disabled="!canQueueFor(role.key, selectedTeamIndex)"
+          :disabled="!canQueueFor(role.key)"
           @click="onClickQueueForRole(role.key)"
         >
           Queue for {{ role.label }}
@@ -166,6 +166,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import BidPopup from './BidPopup.vue';
 import MatchResultPopup from './MatchResultPopup.vue';
 import { useUserStore } from './stores/userStore';
+import { getLobby, placeBid } from './api/lobbyApi';
 
 const userStore = useUserStore();
 userStore.hydrateFromStorage();
@@ -186,23 +187,20 @@ interface Team {
 const winnerRoleByTeam = reactive<(RoleKey | null)[]>([null, null]);
 const selectedTeamIndex = ref<0 | 1>(0);   // which team user is bidding on
 const bidPopupTeamIndex = ref<0 | 1>(0);   // which team the current popup is for
+const canQueueFor = (_role: RoleKey): boolean => !userAssignment.value;
 
+// Lobby header 
+const lobbyId = import.meta.env.VITE_LOBBY_ID as string; // @TODO temp until lobbies are started by admin
+const lobbyTournamentName = ref<string>('Bronze War');
+const lobbyStartsAtIso = ref<string>(new Date(Date.now() + 3 * 60 * 1000).toISOString());
+const tournamentName = computed(() => lobbyTournamentName.value);
 
-const props = withDefaults(
-  defineProps<{
-    tournamentName?: string;
-    /** ISO string or anything new Date() accepts */
-    startsAt?: string;
-    /** The name of the currently logged-in user (to be queued into slots). */
-  }>(),
-  {
-    tournamentName: 'Bronze War',
-    startsAt: new Date(Date.now() + .5 * 60 * 1000).toISOString(), // countdown
-  }
-);
+// Polling state
+let lobbyPollId: number | null = null;
+const isSyncing = ref(false);
 
 const divisionIcon = computed(() => {
-  const name = props.tournamentName.toLowerCase();
+  const name = tournamentName.value.toLowerCase();
 
   if (name.includes('bronze')) {
     return new URL('@/assets/divisions/bronze.png', import.meta.url).href;
@@ -217,6 +215,13 @@ const divisionIcon = computed(() => {
   return null;
 });
 
+// Track where this user is currently assigned.
+const userAssignment = ref<{ teamIndex: number; slotIndex: number } | null>(
+  null
+);
+
+const statusMessage = ref<string | null>(null);
+
 const roles: { key: RoleKey; label: string }[] = [
   { key: 'TOP',     label: 'Top' },
   { key: 'JUNGLE',  label: 'Jungle' },
@@ -226,7 +231,7 @@ const roles: { key: RoleKey; label: string }[] = [
 ];
 
 const teamTopBids = reactive<Record<RoleKey, number>[]>([
-  { TOP: 10, JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 }, 
+  { TOP: 0, JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 }, 
   { TOP: 0,  JUNGLE: 0, MID: 0, ADC: 0, SUPPORT: 0 },
 ]);
 
@@ -244,57 +249,103 @@ const teams = reactive<Team[]>([
   createEmptyTeam('Team B')
 ]);
 
-/**
- * Track where this user is currently assigned.
- * (In real app you’d get this from your backend / socket events.)
- */
-const userAssignment = ref<{ teamIndex: number; slotIndex: number } | null>(
-  null
-);
 
-const statusMessage = ref<string | null>(null);
-
-/* --- Queue logic --- */
+/* --- API LobbyDto → local UI state --- */
 
 const roleLabel = (role: RoleKey) =>
   roles.find((r) => r.key === role)?.label ?? role;
 
-const canQueueFor = (role: RoleKey, teamIndex: number): boolean => {
-  if (userAssignment.value) {
-    // Already queued somewhere, keep it simple for now.
-    return false;
-  }
-
-  // Is there at least one free slot with this role + team?
-  const team = teams[teamIndex];
-  return team.slots.some((slot) => slot.role === role && !slot.displayName);
+type LobbyDto = {
+  lobbyId: string;
+  tournamentName: string;
+  startsAtIso: string;
+  teams: { name: string; slots: { role: RoleKey; displayName: string | null; avatarUrl: string | null; topBidCredits: number }[] }[];
 };
 
-// test method for getting a role without bidding popup
-const queueForRole = (teamIndex: number, role: RoleKey) => {
-  statusMessage.value = null;
+const applyLobbyDto = (dto: LobbyDto) => {
+  lobbyTournamentName.value = dto.tournamentName;
+  lobbyStartsAtIso.value = dto.startsAtIso;
 
-  if (userAssignment.value) {
-    statusMessage.value = 'You are already queued for a role.';
-    return;
-  }
+  dto.teams.forEach((t, teamIndex) => {
+    if (!teams[teamIndex]) return;
 
-  const team = teams[teamIndex];
-  const slotIndex = team.slots.findIndex(
-    (slot) => slot.role === role && !slot.displayName
+    teams[teamIndex].name = t.name;
+
+    t.slots.forEach((s) => {
+      const slot = teams[teamIndex].slots.find(x => x.role === s.role);
+      if (!slot) return;
+
+      slot.displayName = s.displayName;
+      slot.avatarUrl = s.avatarUrl;
+
+      teamTopBids[teamIndex][s.role] = s.topBidCredits;
+    });
+  });
+
+  // Recompute "assignment" from server state so sessions stay consistent
+  const myTeamIndex = teams.findIndex(team =>
+    team.slots.some(slot => slot.displayName === userStore.displayName)
   );
 
-  if (slotIndex !== -1) {
-    team.slots[slotIndex].displayName = userStore.displayName;
-    team.slots[slotIndex].avatarUrl = userStore.avatarUrl;
-    userAssignment.value = { teamIndex, slotIndex };
-    statusMessage.value = `Queued as ${roleLabel(role)} on ${team.name}.`;
-  } 
-  else 
-  {
-    statusMessage.value = `${team.name} ${roleLabel(role)} is full.`;
+  if (myTeamIndex >= 0) {
+    const slotIndex = teams[myTeamIndex].slots.findIndex(slot => slot.displayName === userStore.displayName);
+    userAssignment.value = slotIndex >= 0 ? { teamIndex: myTeamIndex, slotIndex } : null;
+  } else {
+    userAssignment.value = null;
   }
 };
+
+/* --- Refresh + Polling logic --- */
+
+const getUserQuery = () => ({
+  userId: userStore.user?.id ?? 'dev-user',  // safe fallback
+  displayName: userStore.displayName,
+  avatarUrl: userStore.avatarUrl,
+});
+
+// Temp until web socket integration 
+const refreshLobby = async () => {
+  try {
+    isSyncing.value = true;
+    const dto = await getLobby(lobbyId, getUserQuery());
+    applyLobbyDto(dto);
+    statusMessage.value = null;
+  } catch (e: any) {
+    statusMessage.value = e?.message ?? 'Failed to sync lobby';
+  } finally {
+    isSyncing.value = false;
+  }
+};
+
+const startLobbyPolling = () => {
+  if (lobbyPollId) return;
+  lobbyPollId = window.setInterval(() => {
+    if (document.visibilityState === 'visible') refreshLobby();
+  }, 2000); // 1000–2000ms is ideal for dev
+};
+
+const stopLobbyPolling = () => {
+  if (lobbyPollId) window.clearInterval(lobbyPollId);
+  lobbyPollId = null;
+};
+
+onMounted(async () => {
+  await refreshLobby();   // initial load from API
+  startLobbyPolling();    // keep in sync
+
+  updateRemaining();
+  timerId = window.setInterval(updateRemaining, 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshLobby();
+  });
+});
+
+onBeforeUnmount(() => {
+  stopLobbyPolling();
+  if (timerId !== null) clearInterval(timerId);
+});
+
 
 
 /* --- Bid Popup logic --- */
@@ -305,7 +356,6 @@ const bidPopupQueuePosition = ref<number>(3);
 const bidPopupTopBid = ref<number | null>(5);
 
 const onClickQueueForRole = (role: RoleKey) => {
-  // eventually this data will come from API
   bidPopupTeamIndex.value = selectedTeamIndex.value;
   bidPopupRoleName.value = roleLabel(role);
   bidPopupQueuePosition.value = 3;
@@ -313,28 +363,35 @@ const onClickQueueForRole = (role: RoleKey) => {
   bidPopupOpen.value = true;
 };
 
-// replace with API call 
-const handleBidSubmit = (amount: number) => {
-  bidPopupOpen.value = false;
-
+const handleBidSubmit = async (amount: number) => {
   const roleKey = roles.find(r => r.label === bidPopupRoleName.value)?.key;
   if (!roleKey) return;
 
   const teamIndex = bidPopupTeamIndex.value;
-  const previousTop = teamTopBids[teamIndex][roleKey];
+  try {
+    const res = await placeBid(
+      lobbyId,
+      { teamIndex, role: roleKey, amount },
+      getUserQuery()
+    );
 
-  if (amount > previousTop) {
-    teamTopBids[teamIndex][roleKey] = amount;
-    queueForRole(teamIndex, roleKey);
-
-    // show "Winner!!!" only on that team’s column
-    winnerRoleByTeam[teamIndex] = roleKey;
-    window.setTimeout(() => {
-    if (winnerRoleByTeam[teamIndex] === roleKey) {
-      winnerRoleByTeam[teamIndex] = null;
+    // If you became top bidder, show the animation (per team)
+    if (res?.didBecomeTopBidder) {
+      winnerRoleByTeam[teamIndex] = roleKey;
+      window.setTimeout(() => {
+        if (winnerRoleByTeam[teamIndex] === roleKey) {
+          winnerRoleByTeam[teamIndex] = null;
+        }
+      }, 1200);
     }
-   }, 1200);
+
+    // Always refresh after bid so UI updates immediately
+    await refreshLobby();
+  } catch (e: any) {
+    statusMessage.value = e?.message ?? 'Bid failed';
   }
+
+  bidPopupOpen.value = false;
 };
 
 const handleBidCancel = () => {
@@ -376,6 +433,7 @@ const handleResultClose = () => {
   resultPopupOpen.value = false;
 };
 
+
 /* --- Countdown timer --- */
 
 const remainingSeconds = ref(0);
@@ -383,7 +441,7 @@ let timerId: number | null = null;
 
 const updateRemaining = () => {
   const now = Date.now();
-  const start = new Date(props.startsAt).getTime();
+  const start = new Date(lobbyStartsAtIso.value).getTime();
   const diffMs = Math.max(0, Math.floor((start - now) / 1000));
 
   const previous = remainingSeconds.value;
@@ -400,17 +458,6 @@ const formattedRemaining = computed(() => {
   const minutes = Math.floor(s / 60);
   const seconds = s % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-});
-
-onMounted(() => {
-  updateRemaining();
-  timerId = window.setInterval(updateRemaining, 1000);
-});
-
-onBeforeUnmount(() => {
-  if (timerId !== null) {
-    clearInterval(timerId);
-  }
 });
 
 </script>
