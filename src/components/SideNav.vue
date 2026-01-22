@@ -18,6 +18,14 @@
         <button class="nav-btn nav-btn--highlight" @click="$router.push('/create-lobby')">Create Lobby</button>
       </li>
     </ul>
+    <template v-if="userStore.isAdmin">
+      <div class="side-nav__admin-title">Admin Tools</div>
+      <ul class="side-nav__admin-list">
+        <li>
+          <button class="nav-btn nav-btn--highlight" @click="$router.push('/create-lobby')">Create Lobby</button>
+        </li>
+      </ul>
+    </template>
   </nav>
 </template>
 
@@ -49,6 +57,19 @@ const userStore = useUserStore();
   letter-spacing: 0.16em;
   color: #9fb4d8;
   margin-bottom: 0.75rem;
+}
+
+.side-nav__admin-list {
+  margin-top: 0.6rem;
+}
+
+.side-nav__admin-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #e19bff; /* pink/purple */
+  margin-top: 1rem; /* spacing from regular nav */
+  margin-bottom: 0.5rem;
 }
 
 .side-nav ul {
