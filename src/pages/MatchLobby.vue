@@ -320,7 +320,8 @@ const startLobbyPolling = () => {
   if (lobbyPollId) return;
   lobbyPollId = window.setInterval(() => {
     if (document.visibilityState === 'visible') refreshLobby();
-  }, 2000); // 1000–2000ms is ideal for dev
+  }, 5000); // 1000–2000ms is ideal for dev // lagging changing to 5000ms for demo
+                // @todo: make adaptive based on websockets?
 };
 
 const stopLobbyPolling = () => {
@@ -702,11 +703,13 @@ const formattedRemaining = computed(() => {
 
 /* Footer bar */
 .lobby__footer {
-  border-top: 1px solid #283a54;
-  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  padding: 0.75rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  background: linear-gradient(135deg, rgba(250,210,120,0.04), rgba(34,183,255,0.03));
+  box-shadow: inset 0 0 0 1px rgba(13,35,60,0.6);
 }
 
 /* Queue buttons styled like LoL blue buttons */

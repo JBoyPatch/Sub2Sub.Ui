@@ -1,0 +1,34 @@
+:root {
+  --bg: #0b0f12; /* dark grey background */
+  --panel: #0f1417; /* slightly lighter panel */
+  --muted: #9fb4d8;
+  --text: #eaf2ff;
+}
+
+html, body, #app {
+  height: 100%;
+  background-color: var(--bg) !important;
+  color: var(--text);
+}
+
+/* Default fallback for elements using white backgrounds */
+body * {
+  background-color: transparent;
+  color: inherit;
+}
+
+/* Panels / cards default */
+.card, .panel, .auth-card, .tile {
+  background-color: var(--panel) !important;
+  color: var(--text) !important;
+}
+
+/* Buttons, inputs will keep their styles but ensure contrast */
+input, textarea, select {
+  background-color: rgba(255,255,255,0.03) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+}
+
+/* Links */
+a { color: #7fb8ff; }

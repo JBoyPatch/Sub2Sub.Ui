@@ -89,7 +89,7 @@
         </form>
 
         <p class="small muted footer-note">
-          Local/dev auth placeholder — hook this into your backend later.
+          Local/Development - v0.0.1
         </p>
       </div>
     </div>
@@ -225,7 +225,7 @@ const onSubmit = async () => {
 .auth-card {
   width: 420px;
   max-width: 100%;
-  padding: 1.75rem 2rem 1.5rem;
+  padding: 2rem 2rem 1.5rem;
   border-radius: 22px;
   background:
     radial-gradient(circle at top, rgba(34, 73, 122, 0.5), transparent 50%),
