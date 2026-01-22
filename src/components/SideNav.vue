@@ -14,12 +14,17 @@
       <li>
         <button class="nav-btn" @click="$router.push('/leaders')">Leaderboards</button>
       </li>
+      <li v-if="userStore.isAdmin">
+        <button class="nav-btn nav-btn--highlight" @click="$router.push('/create-lobby')">Create Lobby</button>
+      </li>
     </ul>
   </nav>
 </template>
 
 <script setup lang="ts">
+import { useUserStore } from '../stores/userStore';
 // Simple left-side navigation
+const userStore = useUserStore();
 </script>
 
 <style scoped>

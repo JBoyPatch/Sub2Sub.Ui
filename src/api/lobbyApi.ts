@@ -43,6 +43,27 @@ export async function getLobbies() {
   }
 }
 
+export async function createLobby(payload: { tournamentName: string; startsAtIso: string }) {
+  try {
+    const url = `${baseUrl}/lobbies`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Create lobby failed: ${res.status} ${txt}`);
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error('Error creating lobby:', e);
+    throw e;
+  }
+}
+
 export async function placeBid(lobbyId: string, bid: BidRequest, user: UserQuery) {
   const url = withUserQuery(`${baseUrl}/lobbies/${encodeURIComponent(lobbyId)}/bids`, user);
   const res = await fetch(url, {

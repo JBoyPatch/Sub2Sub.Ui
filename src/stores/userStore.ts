@@ -5,6 +5,7 @@ export interface UserProfile {
   username: string;
   avatarUrl: string | null;
   credits: number;
+  type?: 'User' | 'Admin' | string;
 }
 
 interface UserState {
@@ -20,6 +21,7 @@ export const useUserStore = defineStore('user', {
 
   getters: {
     isLoggedIn: (state) => !!state.user && !!state.accessToken,
+    isAdmin: (state) => state.user?.type === 'Admin',
     displayName: (state) => state.user?.username ?? 'OptimalLulz',
     avatarUrl: (state) =>
       state.user?.avatarUrl ??

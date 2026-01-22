@@ -129,7 +129,8 @@ const onSubmit = async () => {
           id: `api-${username.value}`,
           username: res.username,
           avatarUrl: (res.avatarUrl ?? avatarUrl.value) || null,
-          credits: res.credits ?? 0
+          credits: res.credits ?? 0,
+          type: res.type ?? 'User'
         },
         accessToken: token
       });
@@ -147,7 +148,8 @@ const onSubmit = async () => {
         id: `api-${username.value}`,
         username: res.username,
         avatarUrl: (res.avatarUrl ?? avatarUrl.value) || null,
-        credits: res.credits ?? 0
+        credits: res.credits ?? 0,
+        type: res.type ?? 'User'
       },
       accessToken: token
     });

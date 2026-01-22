@@ -5,6 +5,7 @@ import Home from '../pages/Home.vue';
 import Profile from '../pages/Profile.vue';
 import Stats from '../pages/Stats.vue';
 import Leaders from '../pages/Leaders.vue';
+import CreateLobby from '../pages/CreateLobby.vue';
 import { useUserStore } from '../stores/userStore';
 
 const routes: Array<RouteRecordRaw> = [
@@ -13,6 +14,7 @@ const routes: Array<RouteRecordRaw> = [
   { path: '/profile', name: 'Profile', component: Profile },
   { path: '/stats', name: 'Stats', component: Stats },
   { path: '/leaders', name: 'Leaders', component: Leaders },
+  { path: '/create-lobby', name: 'CreateLobby', component: CreateLobby },
   { path: '/login', name: 'Login', component: Login }
 ];
 

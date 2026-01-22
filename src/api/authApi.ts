@@ -5,6 +5,7 @@ export type AuthUserDto = {
   avatarUrl?: string | null;
   credits?: number;
   accessToken?: string | null;
+  type?: string | null; // 'User' | 'Admin'
   message?: string | null;
 };
 
