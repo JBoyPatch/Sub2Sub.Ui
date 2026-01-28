@@ -20,14 +20,20 @@ function withUserQuery(url: string, user: UserQuery) {
   return u.toString();
 }
 
-export async function getLobby(lobbyId: string, user: UserQuery) {
+export async function getLobby(lobbyId: string, user: UserQuery, options?: { signal?: AbortSignal }) {
   try {
     const url = withUserQuery(`${baseUrl}/lobbies/${encodeURIComponent(lobbyId)}`, user);
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: options?.signal });
     if (!res.ok) throw new Error(`GET lobby failed: ${res.status}`);
     return res.json();
   } catch (e) {
-    console.error('Error fetching lobby:', e);
+    // Let callers handle abort vs network errors; log for debugging
+    if ((e as any)?.name === 'AbortError') {
+      // aborted request
+      // console.debug('getLobby aborted');
+    } else {
+      console.error('Error fetching lobby:', e);
+    }
   }
 }
 

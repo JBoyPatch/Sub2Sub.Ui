@@ -14,9 +14,6 @@
       <li>
         <button class="nav-btn" @click="$router.push('/leaders')">Leaderboards</button>
       </li>
-      <li v-if="userStore.isAdmin">
-        <button class="nav-btn nav-btn--highlight" @click="$router.push('/create-lobby')">Create Lobby</button>
-      </li>
     </ul>
     <template v-if="userStore.isAdmin">
       <div class="side-nav__admin-title">Admin Tools</div>

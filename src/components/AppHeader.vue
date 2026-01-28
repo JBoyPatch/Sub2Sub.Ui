@@ -1,7 +1,7 @@
 <template>
   <header class="app-header">
     <div class="app-header__left">
-      <img src="@/assets/pngsubwars-logo.png" alt="logo" class="auth-logo-small" />
+      <img src="@/assets/pngsubwars-mini.png" alt="logo" class="auth-logo-small" />
       <router-link to="/" class="app-header__brand">
         SUB WARS
         <span class="app-header__brand-sub">Lobby Based Tournement Matchmaking</span>
@@ -106,8 +106,8 @@ const handleLogout = () => {
 }
 
 .auth-logo-small {
-  width: 48px;
-  height: 40px;
+  width: 108px;
+  height: 100px;
   object-fit: contain;
   filter: drop-shadow(0 0 10px rgba(0, 196, 255, 0.6));
 }

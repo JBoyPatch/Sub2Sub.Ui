@@ -1,12 +1,22 @@
 <template>
   <div class="home-page">
+    <div class="home-page__video">
+      <iframe
+        src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+        title="Sub Wars Trailer"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen
+      ></iframe>
+    </div>
+
     <header class="home-page__header">
       <h2>Active Lobbies</h2>
       <p class="home-page__subtitle">
         Live Sub Wars rooms you can join right now.
       </p>
     </header>
-
     <div class="tiles">
       <LobbyTile
         v-for="lobby in lobbies"
@@ -21,6 +31,7 @@
     </div>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
@@ -49,6 +60,20 @@ onMounted(async () => {
   color: #eaf2ff;
 }
 
+.home-page__video {
+  width: 100%;
+  overflow: hidden;
+}
+
+.home-page__video iframe {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  height: 360px;
+  border: 0;
+  display: block;
+  margin-bottom: 2rem;
+}
+
 .home-page__header {
   margin-bottom: 1rem;
 }
@@ -71,5 +96,9 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1.1rem;
+}
+
+@media (max-width: 700px) {
+  .home-page__video iframe { height: 220px; }
 }
 </style>

@@ -197,7 +197,10 @@ const lobbyStartsAtIso = ref<string>(new Date(Date.now() + 3 * 60 * 1000).toISOS
 const tournamentName = computed(() => lobbyTournamentName.value);
 
 // Polling state
-let lobbyPollId: number | null = null;
+let pollTimeoutId: number | null = null;
+let pollAbortController: AbortController | null = null;
+let pollBackoff = 1;
+const basePollInterval = import.meta.env.DEV ? 2000 : 5000; // ms
 const isSyncing = ref(false);
 
 const divisionIcon = computed(() => {
@@ -311,10 +314,10 @@ const getUserQuery = () => ({
 });
 
 // Temp until web socket integration 
-const refreshLobby = async () => {
+const refreshLobby = async (options?: { signal?: AbortSignal }) => {
   try {
     isSyncing.value = true;
-    const dto = await getLobby(lobbyId.value, getUserQuery());
+    const dto = await getLobby(lobbyId.value, getUserQuery(), { signal: options?.signal });
     applyLobbyDto(dto);
     statusMessage.value = null;
     if (pendingResultOnSync.value) {
@@ -330,16 +333,51 @@ const refreshLobby = async () => {
 };
 
 const startLobbyPolling = () => {
-  if (lobbyPollId) return;
-  lobbyPollId = window.setInterval(() => {
-    if (document.visibilityState === 'visible') refreshLobby();
-  }, 5000); // 1000–2000ms is ideal for dev // lagging changing to 5000ms for demo
-                // @todo: make adaptive based on websockets?
+  if (pollTimeoutId) return;
+
+  // Poll loop that schedules next poll only after the previous completes.
+  const pollLoop = async () => {
+    // abort previous in-flight request if any
+    if (pollAbortController) {
+      try { pollAbortController.abort(); } catch {}
+    }
+    pollAbortController = new AbortController();
+
+    try {
+      if (document.visibilityState === 'visible') {
+        // perform one refresh with ability to abort
+        await refreshLobby({ signal: pollAbortController.signal });
+        // successful fetch -> reset backoff
+        pollBackoff = 1;
+      } else {
+        // when hidden, avoid network calls but keep scheduling with larger delay
+      }
+    } catch (e: any) {
+      // on error, increase backoff so we don't hammer the API
+      console.error('Lobby poll error', e);
+      pollBackoff = Math.min(8, pollBackoff * 2);
+    } finally {
+      // schedule next poll; increase delay if tab is hidden
+      const visibilityMultiplier = document.visibilityState === 'visible' ? 1 : 4;
+      const delay = basePollInterval * pollBackoff * visibilityMultiplier;
+      pollTimeoutId = window.setTimeout(pollLoop, delay);
+    }
+  };
+
+  // start first iteration immediately
+  pollLoop();
 };
 
 const stopLobbyPolling = () => {
-  if (lobbyPollId) window.clearInterval(lobbyPollId);
-  lobbyPollId = null;
+  if (pollTimeoutId) {
+    window.clearTimeout(pollTimeoutId);
+    pollTimeoutId = null;
+  }
+  if (pollAbortController) {
+    try { pollAbortController.abort(); } catch {}
+    pollAbortController = null;
+  }
+  pollBackoff = 1;
 };
 
 onMounted(async () => {
