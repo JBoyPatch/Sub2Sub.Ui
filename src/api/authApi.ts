@@ -1,5 +1,6 @@
 export type AuthUserDto = {
   ok: boolean;
+  id?: string | null;
   username: string;
   email?: string | null;
   avatarUrl?: string | null;

@@ -1,12 +1,12 @@
 <template>
   <div class="link-riot">
-    <h3>Link Riot Account</h3>
+    <h3>Linked Riot Account</h3>
 
     <!-- If a profile exists and the form is hidden, render compact tile -->
     <div v-if="profile && !showForm" class="profile-tile">
       <div class="tile-left">
-        <img v-if="profile.riotProfileIconId" :src="avatarUrl(profile.riotProfileIconId)" alt="avatar" class="avatar" />
-        <div class="icon" v-else>{{ profile.riotProfileIconId }}</div>
+        <img v-if="profile.riotProfileIconId && !avatarBroken" :src="avatarSrc" alt="avatar" class="avatar" @error="onAvatarError" />
+        <div v-else class="avatar-fallback">{{ avatarInitials(profile) }}</div>
       </div>
       <div class="tile-main">
         <div class="tile-title">{{ profile.riotGameName }}#{{ profile.riotTagline }}</div>
@@ -14,7 +14,7 @@
         <div class="tile-sub">PUUID: {{ shortened(profile.riotPuuid) }}</div>
       </div>
       <div class="tile-actions">
-        <button @click="openForm">Link Accounts</button>
+        <button @click="openForm">Link Account</button>
         <button class="secondary" @click="refreshProfile">Refresh</button>
       </div>
     </div>
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits, defineExpose, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps<{ userId: string }>()
 const emit = defineEmits<{
@@ -102,13 +102,39 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return data as T
 }
 
-const apiBase = (import.meta as any).env?.VITE_API_BASE || ''
+// Normalize API base:
+// - In dev, use the local proxy path so requests go through Vite: '/api/$default'
+// - In prod, use the configured VITE_API_BASE_URL but strip any trailing slash to avoid double-slashes
+const rawEnv = (import.meta as any).env || {}
+const apiBase = rawEnv.DEV
+  ? '/api/$default'
+  : ((rawEnv.VITE_API_BASE_URL as string) || (rawEnv.VITE_API_BASE as string) || '')?.replace(/\/$/, '')
 const dragonVersion = (import.meta as any).env?.VITE_DRAGON_VERSION || '13.6.1'
 const dragonBase = `https://ddragon.leagueoflegends.com/cdn/${dragonVersion}`
 
 function avatarUrl(iconId: number | string) {
   return `${dragonBase}/img/profileicon/${iconId}.png`
 }
+
+const avatarBroken = ref(false)
+const avatarSrc = ref('')
+
+function onAvatarError() {
+  avatarBroken.value = true
+}
+
+function avatarInitials(p: any) {
+  const name = p?.riotGameName ?? ''
+  if (!name) return '—'
+  return name.slice(0,2).toUpperCase()
+}
+
+// update avatarSrc when profile changes
+watch(profile, (p) => {
+  avatarBroken.value = false
+  if (p && p.riotProfileIconId) avatarSrc.value = avatarUrl(p.riotProfileIconId)
+  else avatarSrc.value = ''
+}, { immediate: true })
 
 async function linkAccount() {
   error.value = null
@@ -271,9 +297,10 @@ button[disabled] { opacity: 0.6; cursor: not-allowed }
 .profile div { margin: 4px 0; color: rgba(230,238,248,0.9) }
 
 /* compact tile */
-.profile-tile { display:flex; align-items:center; gap:12px; padding:8px; border-radius:8px; background: rgba(255,255,255,0.01); border:1px solid rgba(255,255,255,0.03) }
+.profile-tile { display:flex; align-items:center; gap:12px; padding:10px; border-radius:8px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03) }
 .tile-left { width:64px; height:64px; display:flex; align-items:center; justify-content:center }
 .avatar { width:64px; height:64px; border-radius:8px; object-fit:cover; border:1px solid rgba(255,255,255,0.04); box-shadow: 0 4px 12px rgba(0,0,0,0.6) }
+.avatar-fallback { width:64px; height:64px; border-radius:8px; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg,#1b3358,#0b1220); color:#ffd27a; font-weight:700; font-size:20px; border:1px solid rgba(255,255,255,0.04) }
 .tile-main { flex:1 }
 .tile-title { font-size:16px; font-weight:700; color:#ffd27a }
 .tile-sub { font-size:13px; color: rgba(230,238,248,0.78); margin-top:4px }

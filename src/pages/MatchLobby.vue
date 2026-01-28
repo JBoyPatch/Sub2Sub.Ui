@@ -32,7 +32,7 @@
         <h2 class="team__name">Team A</h2>
         <ul class="team__slots">
           <li
-            v-for="slot in teams[0].slots"
+            v-for="slot in teams[0]?.slots || []"
             :key="`A-${slot.role}`"
             class="slot"
             :class="{ 'slot--filled': !!slot.displayName }"
@@ -53,7 +53,7 @@
             </div>
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
-              <div class="slot__bid-value">{{ teamTopBids[0][slot.role] }} Credits</div>
+              <div class="slot__bid-value">{{ (teamTopBids[0]?.[slot.role] ?? 0) }} Credits</div>
 
               <!-- Winner float animation -->
               <div
@@ -72,7 +72,7 @@
         <h2 class="team__name">Team B</h2>
         <ul class="team__slots">
           <li
-            v-for="slot in teams[1].slots"
+            v-for="slot in teams[1]?.slots || []"
             :key="`B-${slot.role}`"
             class="slot"
             :class="{ 'slot--filled': !!slot.displayName }"
@@ -93,7 +93,7 @@
             </div>
             <div class="slot__bid">
               <div class="slot__bid-label">Current Bid</div>
-              <div class="slot__bid-value">{{ teamTopBids[1][slot.role] }} Credits</div>
+              <div class="slot__bid-value">{{ (teamTopBids[1]?.[slot.role] ?? 0) }} Credits</div>
 
               <!-- Winner float animation -->
               <div
@@ -191,7 +191,7 @@ const canQueueFor = (_role: RoleKey): boolean => !userAssignment.value;
 
 // Lobby header
 const route = useRoute();
-const lobbyId = ref<string>((route.query.lobbyId as string) || (import.meta.env.VITE_LOBBY_ID as string) || 'lobby123');
+const lobbyId = ref<string>((route.query.lobbyId as string) || (import.meta.env.VITE_LOBBY_ID as string) || '');
 const lobbyTournamentName = ref<string>('Bronze War');
 const lobbyStartsAtIso = ref<string>(new Date(Date.now() + 3 * 60 * 1000).toISOString());
 const tournamentName = computed(() => lobbyTournamentName.value);
@@ -276,13 +276,13 @@ const applyLobbyDto = (dto: LobbyDto) => {
     teams[teamIndex].name = t.name;
 
     t.slots.forEach((s) => {
-      const slot = teams[teamIndex].slots.find(x => x.role === s.role);
+      const slot = teams[teamIndex]?.slots.find(x => x.role === s.role);
       if (!slot) return;
 
       slot.displayName = s.displayName;
       slot.avatarUrl = s.avatarUrl;
 
-      teamTopBids[teamIndex][s.role] = s.topBidCredits;
+      if (teamTopBids[teamIndex]) teamTopBids[teamIndex][s.role] = s.topBidCredits;
     });
   });
 
@@ -292,7 +292,7 @@ const applyLobbyDto = (dto: LobbyDto) => {
   );
 
   if (myTeamIndex >= 0) {
-    const slotIndex = teams[myTeamIndex].slots.findIndex(slot => slot.displayName === userStore.displayName);
+    const slotIndex = teams[myTeamIndex]?.slots.findIndex(slot => slot.displayName === userStore.displayName) ?? -1;
     userAssignment.value = slotIndex >= 0 ? { teamIndex: myTeamIndex, slotIndex } : null;
   } else {
     userAssignment.value = null;
@@ -308,7 +308,7 @@ const applyLobbyDto = (dto: LobbyDto) => {
 /* --- Refresh + Polling logic --- */
 
 const getUserQuery = () => ({
-  userId: userStore.user?.id ?? 'dev-user',  // safe fallback
+  userId: userStore.user?.id ?? (import.meta.env.VITE_DEV_USER_ID as string) ?? '',
   displayName: userStore.displayName,
   avatarUrl: userStore.avatarUrl,
 });
@@ -396,7 +396,7 @@ onMounted(async () => {
 watch(
   () => route.query.lobbyId,
   async (val) => {
-    const id = (val as string) || (import.meta.env.VITE_LOBBY_ID as string) || 'lobby123';
+    const id = (val as string) || (import.meta.env.VITE_LOBBY_ID as string) || '';
     if (id !== lobbyId.value) {
       lobbyId.value = id;
       await refreshLobby();
@@ -422,7 +422,7 @@ const onClickQueueForRole = (role: RoleKey) => {
   bidPopupTeamIndex.value = selectedTeamIndex.value;
   bidPopupRoleName.value = roleLabel(role);
   bidPopupQueuePosition.value = 3;
-  bidPopupTopBid.value = teamTopBids[bidPopupTeamIndex.value][role];
+  bidPopupTopBid.value = teamTopBids[bidPopupTeamIndex.value]?.[role] ?? null;
   bidPopupOpen.value = true;
 };
 
@@ -479,12 +479,12 @@ function showResultPopupForCurrentUser() {
   hasShownResultPopup.value = true;
 
   if (userAssignment.value) {
-    // Demo logic: if you were assigned a slot, you "won"
-    const { teamIndex, slotIndex } = userAssignment.value;
-    const role = teams[teamIndex].slots[slotIndex].role;
+  // Demo logic: if you were assigned a slot, you "won"
+  const { teamIndex, slotIndex } = userAssignment.value;
+  const role = teams[teamIndex]?.slots?.[slotIndex]?.role ?? null;
 
-    resultDidWin.value = true;
-    resultWonRoleName.value = roleLabel(role);
+  resultDidWin.value = true;
+  resultWonRoleName.value = role ? roleLabel(role) : null;
 
     // Demo match code – later replace with API response
     resultMatchCode.value = 'DEMO-ABCD-1234';

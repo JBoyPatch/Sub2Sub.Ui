@@ -14,7 +14,7 @@ export default defineConfig({
     proxy: {
       // Proxy /api/* to the API Gateway to avoid CORS during development
       '/api': {
-        target: 'https://uuzjaspetg.execute-api.us-east-1.amazonaws.com',
+        target: process.env.VITE_API_BASE_URL ? String(process.env.VITE_API_BASE_URL).replace(/\/$/, '') : 'https://uuzjaspetg.execute-api.us-east-1.amazonaws.com',
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/api/, ''),

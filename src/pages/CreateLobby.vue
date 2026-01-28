@@ -63,9 +63,12 @@ const onSubmit = async () => {
 
 <style scoped>
 .create-lobby-page { max-width: 720px; margin: 2rem auto; color: #eaf2ff; }
-.create-form { display:flex; flex-direction:column; gap:0.75rem; }
+.create-form { display:flex; flex-direction:column; gap:0.75rem; background: linear-gradient(180deg,#071423,#081826); padding:18px; border-radius:10px; border:1px solid rgba(255,255,255,0.03) }
 .label-text { display:block; font-size:0.85rem; color:#9fb4d8; margin-bottom:0.25rem; }
+input { background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.04); color:#e6eef8; padding:10px 12px; border-radius:6px }
 .actions { display:flex; gap:0.6rem; margin-top:0.6rem; }
+.primary-btn { background: linear-gradient(180deg,#ffcc66,#ffb84d); color:#111; border:none; padding:8px 12px; border-radius:8px; font-weight:700 }
+.ghost-link { background: transparent; color: #9fb4d8; border: none; padding:8px 12px; cursor:pointer }
 .error { color: #ffb4b4; }
 .not-authorized { padding:1rem; background: rgba(255,255,255,0.02); border-radius:8px; }
 </style>

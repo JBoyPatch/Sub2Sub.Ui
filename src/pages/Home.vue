@@ -23,7 +23,7 @@
         :key="lobby.lobbyId"
         :title="lobby.tournamentName"
         :lobby-id="lobby.lobbyId"
-        :api-url="`https://uuzjaspetg.execute-api.us-east-1.amazonaws.com/$default/lobbies/${lobby.lobbyId}`"
+        :api-url="`${apiBase}/lobbies/${lobby.lobbyId}`"
         :queue-tier="lobby.tournamentName.split(' ')[0]"
         :status="'Live'"
         @open="() => openLobby(lobby.lobbyId)"
@@ -38,6 +38,11 @@ import { useRouter } from 'vue-router';
 import { ref, onMounted } from 'vue';
 import LobbyTile from '../components/LobbyTile.vue';
 import { getLobbies } from '../api/lobbyApi';
+
+const rawEnv = (import.meta as any).env || {}
+const apiBase = rawEnv.DEV
+  ? '/api/$default'
+  : ((rawEnv.VITE_API_BASE_URL as string) || (rawEnv.VITE_API_BASE as string) || '')?.replace(/\/$/, '')
 
 const router = useRouter();
 const lobbies = ref<any[]>([]);
