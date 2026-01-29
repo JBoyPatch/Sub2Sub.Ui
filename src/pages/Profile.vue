@@ -11,34 +11,38 @@
       <div class="top-row">
         <div class="profile-left">
           <div class="user-info-card" v-if="userInfo || userStore.user">
+            <h3>Sub Wars Account</h3>
             <div class="avatar-row">
-              <img v-if="userStore.avatarUrl" :src="userStore.avatarUrl" alt="avatar" class="avatar-large" @error="avatarBroken = true" />
-              <div v-else class="avatar-fallback-lg">{{ initials }}</div>
+              <div class="avatar-left">
+                <img v-if="userStore.avatarUrl" :src="userStore.avatarUrl" alt="avatar" class="avatar-large" @error="avatarBroken = true" />
+                <div v-else class="avatar-fallback-lg">{{ initials }}</div>
+              </div>
+              <div class="avatar-meta">
+                <div class="user-row user-name"><strong>Username:</strong> <span class="user-val">{{ displayUsername }}</span></div>
+                <div class="user-row user-credits"><strong>Credits:</strong> <span class="user-val">{{ displayCredits }}</span></div>
+              </div>
             </div>
-            <div class="user-row"><strong>Username:</strong> {{ displayUsername }}</div>
-            <div class="user-row"><strong>Credits:</strong> {{ displayCredits }}</div>
 
-            <label class="label-text">Avatar URL</label>
-            <input v-model="avatarEdit" placeholder="https://..." />
+            <div class="edit-row">
+              <div class="edit-field">
+                <label class="label-text">Avatar URL</label>
+                <input v-model="avatarEdit" placeholder="https://..." />
+              </div>
+            </div>
             <div class="user-actions">
               <button @click="saveAvatarUrl" :disabled="savingAvatar">Save Avatar</button>
-              <button class="secondary" @click="refreshFull" :disabled="loading">Refresh Full Profile</button>
+              <button class="secondary" @click="refreshFull" :disabled="loading">Refresh Profile</button>
+              <button class="secondary" @click="triggerSync" :disabled="loadingSync">Sync Riot Data</button>
+              <button class="add-credits" @click="addCredits">Add Credits</button>
             </div>
+
+            <div v-if="loading" class="meta">Loading...</div>
           </div>
 
           <LinkRiotAccount :userId="userId" @linked="onLinked" ref="linkComp" />
         </div>
 
-        <div class="user-card" v-if="userInfo || userStore.user">
-          <h3>Account</h3>
-          <div class="user-row"><strong>Username:</strong> {{ displayUsername }}</div>
-          <div class="user-row"><strong>Credits:</strong> {{ displayCredits }}</div>
-          <div class="user-actions">
-            <button @click="refreshFull" :disabled="loading">Refresh Full Profile</button>
-            <button class="secondary" @click="triggerSync" :disabled="loadingSync">Sync Riot Data</button>
-          </div>
-          <div v-if="loading" class="meta">Loading...</div>
-        </div>
+        
       </div>
 
       <div class="sections">
@@ -100,6 +104,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import LinkRiotAccount from '../components/LinkRiotAccount.vue'
 import { useUserStore } from '../stores/userStore'
 import usersApi from '../api/usersApi'
+import type { ApiError } from '../api/usersApi'
 
 const userStore = useUserStore()
 const userId = computed(() => userStore.user?.id ?? '')
@@ -233,25 +238,58 @@ async function saveAvatarUrl() {
     savingAvatar.value = false
   }
 }
+
+async function addCredits() {
+  if (!userStore.user) return
+  const input = window.prompt('Enter credits to add (positive number):', '100')
+  if (!input) return
+  const delta = Number(input)
+  if (isNaN(delta) || !isFinite(delta) || delta <= 0) {
+    fetchError.value = 'Invalid credit amount.'
+    return
+  }
+  const newAmount = (userInfo.value?.credits ?? userStore.user.credits ?? 0) + delta
+  try {
+    fetchError.value = null
+    await usersApi.updateUser(userStore.user.id, { credits: newAmount }, userStore.accessToken ?? undefined)
+    // update local stores
+    userStore.updateCredits(newAmount)
+    if (userInfo.value) userInfo.value.credits = newAmount
+    if (profileFull.value && profileFull.value.user) profileFull.value.user.credits = newAmount
+  } catch (e: any) {
+    console.error('addCredits error', e)
+    fetchError.value = e?.message ?? String(e)
+  }
+}
 </script>
 
 <style scoped>
 .page-placeholder { max-width: 1000px; margin: 2rem auto; }
 .top-row { display:flex; gap:18px; align-items:flex-start; }
 .profile-left { display:flex; flex-direction:column; gap:12px }
-.user-info-card { background: linear-gradient(180deg,#071020,#0b1220); padding:16px; border-radius:12px; color:#e6eef8; border:1px solid rgba(255,255,255,0.04); width:340px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-.user-info-card .avatar-row { display:flex; align-items:center; gap:12px; margin-bottom:12px }
-.avatar-large { width:88px; height:88px; border-radius:10px; object-fit:cover; border:1px solid rgba(255,255,255,0.04); box-shadow: 0 6px 18px rgba(0,0,0,0.6) }
+  .user-info-card { background: linear-gradient(180deg,#071020,#0b1220); padding:16px; border-radius:12px; color:#e6eef8; border:1px solid rgba(255,255,255,0.04); max-width:640px; width:100%; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+  .user-info-card h3 { margin: 0 0 12px 0; color: #ffd27a }
+  .user-info-card .avatar-row { display:flex; align-items:center; gap:14px; margin-bottom:12px }
+  .user-info-card .avatar-left { width:88px; flex:0 0 88px; margin-right: 1rem }
+  .user-info-card .avatar-meta { flex:1; display:flex; flex-direction:column; gap:6px }
+  .user-info-card .user-name { font-size:18px; color:#e6eef8 }
+  .user-info-card .user-credits { font-size:16px; color:rgba(230,238,248,0.9) }
+  .user-info-card .user-val { font-weight:700; margin-left:8px; font-size:18px; color:#ffffff }
+.user-info-card .edit-row { display:block; gap:12px; align-items:flex-start; padding-right:20px; padding-bottom:12px; box-sizing:border-box }
+.user-info-card .edit-field { width:100%; }
+.user-actions { margin-top:12px; display:flex; gap:12px; align-items:center }
+.user-actions button { flex:1; min-width:90px }
+.avatar-large { width:100px; height:100px; border-radius:10px; object-fit:cover; border:1px solid rgba(255,255,255,0.04); box-shadow: 0 6px 18px rgba(0,0,0,0.6) }
 .avatar-fallback-lg { width:88px; height:88px; border-radius:10px; display:flex; align-items:center; justify-content:center; background: linear-gradient(180deg,#1b3358,#0b1220); color:#ffd27a; font-weight:700; font-size:22px; border:1px solid rgba(255,255,255,0.04) }
 .user-card { background: linear-gradient(180deg,#071020,#0b1220); padding:14px; border-radius:10px; color:#e6eef8; border:1px solid rgba(255,255,255,0.03); width:320px }
 .user-card h3 { margin:0 0 8px 0; color:#ffd27a }
 .user-row { margin:6px 0 }
-.user-actions { margin-top:12px; display:flex; gap:8px }
+/* duplicate .user-actions removed above */
 button { background: linear-gradient(180deg,#ffcc66,#ffb84d); color: #1a1a1a; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer }
 button.secondary { background: linear-gradient(180deg,#0f394f,#0c2b3c); color:#e6eef8 }
 
 /* input styling consistent with app */
-.user-info-card .label-text { display:block; margin:6px 0 6px; color:#b4c8ea; font-size:0.88rem }
+.user-info-card .label-text { display:block; margin:6px 0 6px; color:#b4c8ea; font-size:0.88rem}
 .user-info-card input { width:100%; padding:0.5rem 0.6rem; border-radius:8px; border:1px solid rgba(150,184,230,0.12); background: rgba(0,8,20,0.6); color:inherit; font-size:0.95rem; outline:none }
 .user-info-card input:focus { border-color: rgba(42,196,255,0.9); box-shadow: 0 0 0 2px rgba(25,124,214,0.12) }
 
@@ -263,6 +301,7 @@ button.secondary { background: linear-gradient(180deg,#0f394f,#0c2b3c); color:#e
   .user-card { width:100% }
   .user-info-card { width:100% }
   .avatar-large, .avatar-fallback-lg { width:72px; height:72px }
+  .user-info-card .edit-row { padding-left:84px; padding-right:84px }
 }
 .sections { margin-top:18px; display:flex; flex-direction:column; gap:12px }
 .section h3 { margin:0 0 8px 0; color:#ffd27a }

@@ -43,7 +43,9 @@
                 :src="slot.avatarUrl"
                 alt="avatar"
                 class="slot__avatar-img"
+                @error="onSlotAvatarError(slot)"
               />
+              <div v-else class="avatar-fallback">{{ avatarInitials(slot.displayName) }}</div>
             </div>
             <div class="slot__info">
               <div class="slot__name">
@@ -83,7 +85,9 @@
                 :src="slot.avatarUrl"
                 alt="avatar"
                 class="slot__avatar-img"
+                @error="onSlotAvatarError(slot)"
               />
+              <div v-else class="avatar-fallback">{{ avatarInitials(slot.displayName) }}</div>
             </div>
             <div class="slot__info">
               <div class="slot__name">
@@ -280,7 +284,8 @@ const applyLobbyDto = (dto: LobbyDto) => {
       if (!slot) return;
 
       slot.displayName = s.displayName;
-      slot.avatarUrl = s.avatarUrl;
+      // prefer server avatar, fall back to local user store if this is our user
+      slot.avatarUrl = s.avatarUrl ?? (s.displayName === userStore.displayName ? userStore.avatarUrl : null);
 
       if (teamTopBids[teamIndex]) teamTopBids[teamIndex][s.role] = s.topBidCredits;
     });
@@ -529,6 +534,37 @@ const formattedRemaining = computed(() => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
+function onSlotAvatarError(slot: Slot | null) {
+  try {
+    if (!slot) return
+    console.warn('[MatchLobby] avatar load error for', slot.displayName, slot.avatarUrl)
+    // If this broken avatar belongs to the signed-in user, try their store avatar as a fallback
+    if (slot.displayName && slot.displayName === userStore.displayName && userStore.avatarUrl) {
+      if (userStore.avatarUrl !== slot.avatarUrl) {
+        slot.avatarUrl = userStore.avatarUrl
+        return
+      }
+    }
+    // otherwise clear broken URL so initials fallback render
+    slot.avatarUrl = null
+  } catch (e) {
+    // ignore
+  }
+}
+
+function avatarInitials(name: string | null | undefined) {
+  const n = name || ''
+  if (!n) return '—'
+  const parts = n.trim().split(/\s+/)
+  if (parts.length === 1) {
+    const p0 = parts[0] ?? ''
+    return p0.slice(0, 2).toUpperCase()
+  }
+  const a = parts[0]?.[0] ?? ''
+  const b = parts[1]?.[0] ?? ''
+  return (a + b).toUpperCase()
+}
+
 </script>
 
 <style scoped>
@@ -687,6 +723,18 @@ const formattedRemaining = computed(() => {
   border-radius: 6px;
   border: 1px solid #50678b;
   background: radial-gradient(circle at 30% 25%, #202e47, #05070c);
+}
+
+.avatar-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#ffd27a;
+  font-weight:700;
+  background: linear-gradient(180deg,#1b3358,#0b1220);
 }
 
 .slot__avatar-img {

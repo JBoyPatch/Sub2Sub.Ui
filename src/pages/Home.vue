@@ -25,7 +25,8 @@
         :lobby-id="lobby.lobbyId"
         :api-url="`${apiBase}/lobbies/${lobby.lobbyId}`"
         :queue-tier="lobby.tournamentName.split(' ')[0]"
-        :status="'Live'"
+        :status="lobby.status || lobbyStatus(lobby)"
+        :is-active="lobby.isActive || lobbyIsActive(lobby)"
         @open="() => openLobby(lobby.lobbyId)"
       />
     </div>
@@ -47,13 +48,50 @@ const apiBase = rawEnv.DEV
 const router = useRouter();
 const lobbies = ref<any[]>([]);
 
+function lobbyIsActive(lobby: any) {
+  try {
+    const now = Date.now();
+    // prefer explicit end time
+    if (lobby.endsAtIso) {
+      const rem = new Date(lobby.endsAtIso).getTime() - now
+      return rem > 0
+    }
+    // prefer timeLeft fields if provided by API
+    if (lobby.timeLeftMs != null) return Number(lobby.timeLeftMs) > 0
+    if (lobby.timeLeftSec != null) return Number(lobby.timeLeftSec) * 1000 > 0
+    // try to compute from startsAt + duration
+    if (lobby.startsAtIso) {
+      const startMs = new Date(lobby.startsAtIso).getTime()
+      if (lobby.durationMs != null) return startMs + Number(lobby.durationMs) - now > 0
+      if (lobby.durationSec != null) return startMs + Number(lobby.durationSec) * 1000 - now > 0
+      // if started in the past but no end info, consider it ended
+      return startMs > now
+    }
+    return false
+  } catch (e) {
+    return false
+  }
+}
+
+function lobbyStatus(lobby: any) {
+  return lobbyIsActive(lobby) ? 'Live' : 'Ended';
+}
+
 const openLobby = (id?: string) => {
   if (id) router.push({ path: '/lobby', query: { lobbyId: id } });
   else router.push('/lobby');
 };
 
 onMounted(async () => {
-  lobbies.value = await getLobbies();
+  const data = await getLobbies();
+  const processed = (data || []).map((l: any) => ({
+    ...l,
+    isActive: lobbyIsActive(l),
+    status: lobbyStatus(l),
+  }));
+  // sort active (true) first
+  processed.sort((a: any, b: any) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0));
+  lobbies.value = processed;
 });
 </script>
 

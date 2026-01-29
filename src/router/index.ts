@@ -6,11 +6,13 @@ import Profile from '../pages/Profile.vue';
 import Stats from '../pages/Stats.vue';
 import Leaders from '../pages/Leaders.vue';
 import CreateLobby from '../pages/CreateLobby.vue';
+import WarStatsPage from '../pages/WarStatsPage.vue';
 import { useUserStore } from '../stores/userStore';
 
 const routes: Array<RouteRecordRaw> = [
   { path: '/', name: 'Home', component: Home },
   { path: '/lobby', name: 'MatchLobby', component: MatchLobby },
+  { path: '/war-stats', name: 'WarStats', component: WarStatsPage },
   { path: '/profile', name: 'Profile', component: Profile },
   { path: '/stats', name: 'Stats', component: Stats },
   { path: '/leaders', name: 'Leaders', component: Leaders },

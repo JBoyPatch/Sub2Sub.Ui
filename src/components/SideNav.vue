@@ -9,7 +9,7 @@
         <button class="nav-btn" @click="$router.push('/profile')">My Profile</button>
       </li>
       <li>
-        <button class="nav-btn" @click="$router.push('/stats')">War Stats</button>
+        <button class="nav-btn" @click="$router.push('/war-stats')">War Stats</button>
       </li>
       <li>
         <button class="nav-btn" @click="$router.push('/leaders')">Leaderboards</button>

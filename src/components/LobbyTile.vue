@@ -1,12 +1,12 @@
 <template>
   <article class="lobby-tile">
     <header class="lobby-tile__header">
-      <div class="lobby-tile__badge">
-        <span class="badge-tier">{{ queueTier }}</span>
-        <span class="badge-status" :class="statusClass">
-          {{ status }}
-        </span>
-      </div>
+          <div class="lobby-tile__badge">
+            <span class="badge-tier">{{ queueTier }}</span>
+            <span class="badge-status" :class="[statusClass, glowClass]">
+              {{ status }}
+            </span>
+          </div>
 
       <h3 class="lobby-tile__title">
         {{ title }}
@@ -44,6 +44,7 @@ const props = defineProps<{
   apiUrl: string;
   queueTier?: string;
   status?: string;
+  isActive?: boolean;
 }>();
 
 defineEmits<{
@@ -57,6 +58,8 @@ const statusClass = computed(() => {
   if (value.includes('pending') || value.includes('waiting')) return 'badge-status--pending';
   return 'badge-status--default';
 });
+
+const glowClass = computed(() => (props.isActive ? 'badge-glow' : ''));
 
 const queueTier = computed(() => props.queueTier || 'Unranked');
 const status = computed(() => props.status || 'Live');
@@ -123,6 +126,17 @@ const status = computed(() => props.status || 'Live');
 .badge-status--live {
   border-color: rgba(0, 210, 255, 0.8);
   color: #9bf6ff;
+}
+
+.badge-glow {
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.28), 0 0 28px rgba(0, 150, 200, 0.12) inset;
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 6px rgba(0,210,255,0.16), 0 0 18px rgba(0,150,200,0.08) inset; }
+  50% { box-shadow: 0 0 18px rgba(0,210,255,0.28), 0 0 36px rgba(0,150,200,0.12) inset; }
+  100% { box-shadow: 0 0 6px rgba(0,210,255,0.16), 0 0 18px rgba(0,150,200,0.08) inset; }
 }
 
 .badge-status--pending {
