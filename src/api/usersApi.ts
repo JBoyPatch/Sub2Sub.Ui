@@ -77,6 +77,16 @@ export async function postSyncMatches(userId: string) {
   return await requestWithTimeout<any>(`${baseUrl}/users/${encodeURIComponent(userId)}/riot/sync-matches`, { method: 'POST' })
 }
 
+export async function updateUser(userId: string, body: Record<string, any>, token?: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return await requestWithTimeout<any>(`${baseUrl}/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(body),
+  })
+}
+
 export default {
   getProfileFull,
   getUser,
@@ -88,4 +98,5 @@ export default {
   postSyncRanked,
   postSyncMastery,
   postSyncMatches,
+  updateUser,
 }

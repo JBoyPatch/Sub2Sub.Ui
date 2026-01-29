@@ -56,13 +56,7 @@
             />
           </label>
 
-          <label v-if="mode === 'signup'">
-            <span class="label-text">Avatar URL (optional)</span>
-            <input
-              v-model="avatarUrl"
-              placeholder="https://..."
-            />
-          </label>
+          <!-- Avatar URL removed from signup form; avatar comes from profile settings -->
 
           <label>
             <span class="label-text">Password</span>
@@ -73,10 +67,20 @@
             />
           </label>
 
+          <label v-if="mode === 'signup'">
+            <span class="label-text">Confirm password</span>
+            <input
+              v-model="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+            />
+            <p v-if="password && confirmPassword && password !== confirmPassword" class="error">Passwords do not match</p>
+          </label>
+
           <div class="actions">
             <button
               type="submit"
-              :disabled="loading"
+              :disabled="loading || (mode === 'signup' && password !== confirmPassword)"
               class="primary-btn"
             >
               {{ loading ? 'Please wait…' : (mode === 'login' ? 'Enter War' : 'Create account') }}
@@ -107,15 +111,21 @@ const userStore = useUserStore();
 
 const mode = ref<'login' | 'signup'>('login');
 const username = ref('');
-const avatarUrl = ref('');
 const email = ref('');
 const password = ref('');
+const confirmPassword = ref('');
 const error = ref<string | null>(null);
 const loading = ref(false);
 
 const onSubmit = async () => {
   error.value = null;
   loading.value = true;
+    // client-side quick validation: on signup ensure passwords match
+    if (mode.value === 'signup' && password.value !== confirmPassword.value) {
+      error.value = 'Passwords do not match'
+      loading.value = false
+      return
+    }
   try {
     const pwHash = await hashPassword(password.value || '');
 
@@ -128,7 +138,7 @@ const onSubmit = async () => {
         user: {
           id: (res as any).id ?? `api-${username.value}`,
           username: res.username,
-          avatarUrl: (res.avatarUrl ?? avatarUrl.value) || null,
+          avatarUrl: res.avatarUrl ?? null,
           credits: res.credits ?? 0,
           type: res.type ?? 'User'
         },
@@ -147,7 +157,7 @@ const onSubmit = async () => {
       user: {
         id: (res as any).id ?? `api-${username.value}`,
         username: res.username,
-        avatarUrl: (res.avatarUrl ?? avatarUrl.value) || null,
+        avatarUrl: res.avatarUrl ?? null,
         credits: res.credits ?? 0,
         type: res.type ?? 'User'
       },

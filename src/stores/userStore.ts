@@ -41,6 +41,11 @@ export const useUserStore = defineStore('user', {
       this.user.credits = newAmount;
     },
 
+    setAvatarUrl(newUrl: string | null) {
+      if (!this.user) return;
+      this.user.avatarUrl = newUrl;
+    },
+
     logout() {
       this.user = null;
       this.accessToken = null;
