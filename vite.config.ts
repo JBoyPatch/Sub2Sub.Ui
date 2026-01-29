@@ -1,6 +1,8 @@
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
+import fs from 'fs'
+import path from 'path'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
@@ -9,6 +11,26 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
+    // Serve //riot.txt in dev so verification links with double-slash work
+    {
+      name: 'serve-double-slash-riot',
+      configureServer(server) {
+        const riotPath = path.resolve(process.cwd(), 'public', 'riot.txt');
+        server.middlewares.use((req, res, next) => {
+          if (!req || !req.url) return next();
+          if (req.url === '//riot.txt') {
+            fs.readFile(riotPath, 'utf8', (err, data) => {
+              if (err) return next();
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'text/plain');
+              res.end(data);
+            });
+            return;
+          }
+          next();
+        });
+      },
+    },
   ],
   server: {
     proxy: {
