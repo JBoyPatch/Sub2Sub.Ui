@@ -18,14 +18,19 @@ export default defineConfig({
         const riotPath = path.resolve(process.cwd(), 'public', 'riot.txt');
         server.middlewares.use((req, res, next) => {
           if (!req || !req.url) return next();
-          if (req.url === '//riot.txt') {
-            fs.readFile(riotPath, 'utf8', (err, data) => {
-              if (err) return next();
-              res.statusCode = 200;
-              res.setHeader('Content-Type', 'text/plain');
-              res.end(data);
-            });
-            return;
+          try {
+            const urlPath = req.url.split('?')[0];
+            if (urlPath.endsWith('/riot.txt') || urlPath.endsWith('//riot.txt')) {
+              fs.readFile(riotPath, 'utf8', (err, data) => {
+                if (err) return next();
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(data);
+              });
+              return;
+            }
+          } catch (e) {
+            // fallthrough to next
           }
           next();
         });
