@@ -58,7 +58,7 @@
           <button :disabled="loadingSync" @click="syncRanked">Sync Ranked</button>
           <button :disabled="loadingSync" @click="syncMatches">Sync Matches</button>
           <button :disabled="loadingSync" @click="syncMastery">Sync Mastery</button>
-          <button :disabled="loadingSync" @click="refreshProfile">Refresh Profile</button>
+          <button :disabled="loadingSync" @click="refreshProfile">Refresh & Close</button>
           <span v-if="loadingSync">Syncing...</span>
         </div>
       </div>

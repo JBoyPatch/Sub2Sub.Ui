@@ -7,20 +7,39 @@
       </p>
     </header>
 
-    <div class="tiles">
-      <MatchStatTile
-        v-for="m in matches"
-        :key="m.matchId"
-        :match="m"
-        @open="onOpen"
-        @details="onDetails"
-      />
+    <!-- Total stats row (single row above the stat chips) -->
+    <TotalWarStats :matches="matches" />
+
+    <!-- Scrollable tiles row with arrows -->
+    <div class="tiles-wrapper">
+      <button class="scroll-btn left" @click="scrollLeft" aria-label="Scroll left">◀</button>
+      <div class="tiles-row" ref="tilesRow">
+        <div
+          v-for="m in matches"
+          :key="m.matchId"
+          class="tile-item"
+        >
+          <MatchStatTile
+            :match="m"
+            @open="onOpen"
+            @details="onDetails"
+          />
+        </div>
+
+        <!-- 3 placeholder stat chips -->
+        <div class="tile-item placeholder-chip" v-for="n in 3" :key="'ph-'+n">
+          <div class="ph-inner">Placeholder</div>
+        </div>
+      </div>
+      <button class="scroll-btn right" @click="scrollRight" aria-label="Scroll right">▶</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import MatchStatTile, { type PlayerMatchSummary } from '@/components/warstats/MatchStatTile.vue';
+import { ref } from 'vue'
+import MatchStatTile, { type PlayerMatchSummary } from '@/components/warstats/MatchStatTile.vue'
+import TotalWarStats from '@/pages/TotalWarStats.vue'
 
 const matches: PlayerMatchSummary[] = [
   {
@@ -100,6 +119,18 @@ function onOpen(matchId: string) {
 function onDetails(matchId: string) {
   console.log('details', matchId);
 }
+
+const tilesRow = ref<HTMLElement | null>(null)
+function scrollLeft() {
+  const el = tilesRow.value
+  if (!el) return
+  el.scrollBy({ left: -Math.round(el.clientWidth * 0.8), behavior: 'smooth' })
+}
+function scrollRight() {
+  const el = tilesRow.value
+  if (!el) return
+  el.scrollBy({ left: Math.round(el.clientWidth * 0.8), behavior: 'smooth' })
+}
 </script>
 
 <style scoped>
@@ -122,19 +153,60 @@ function onDetails(matchId: string) {
   font-size: 13px;
 }
 
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+/* new scrollable layout */
+.tiles-wrapper {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top: 6px;
+}
+.scroll-btn {
+  background: linear-gradient(180deg,#2b5a7a,#1f3a52);
+  color: #e6eef8;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight:700;
+}
+.tiles-row {
+  display:flex;
+  gap:18px;
+  overflow-x:auto;
+  padding:6px;
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling: touch;
+  flex:1;
+  align-items: stretch;
+}
+.tiles-row::-webkit-scrollbar { height:8px }
+.tiles-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius:4px }
+
+.tile-item {
+  min-width: 260px;
+  flex: 0 0 auto;
 }
 
-@media (max-width: 1250px) {
-  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* placeholder chip styling */
+.placeholder-chip {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius:8px;
+  padding:14px;
+  border:1px solid rgba(255,255,255,0.03);
+  color: rgba(230,238,248,0.9);
 }
+.placeholder-chip .ph-inner { opacity:0.6; font-weight:700 }
+
+/* responsive adjustments */
 @media (max-width: 980px) {
-  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tile-item { min-width: 300px }
 }
 @media (max-width: 640px) {
-  .tiles { grid-template-columns: 1fr; }
+  .tile-item { min-width: 85%; }
 }
+
+/* keep legacy grid rules out by not using .tiles here */
 </style>
